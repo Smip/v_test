@@ -26,6 +26,10 @@
             background-color: #eeeeee;
         }
 
+        thead {
+            border-bottom: 2px solid;
+        }
+
     </style>
 </head>
 <body>
@@ -142,15 +146,24 @@
     function drowTable(tree) {
         const table = document.getElementById('output-data');
         const tbdy = document.createElement('tbody');
-        tree.forEach((root) => {
+        for (let i = 0; i < tree.length; i++) {
+            tree[i].children.forEach(child => {
+                tree.splice(i + 1, 0, child);
+            });
             const tr = document.createElement('tr');
+
+            if (tree[i].children.length) {
+                tr.style.fontWeight = "600";
+                tr.style.cursor = "pointer";
+            }
+
             keys.forEach((key) => {
                 const td = document.createElement('td');
-                td.appendChild(document.createTextNode(root[key] !== undefined ? root[key] : '-'));
+                td.appendChild(document.createTextNode(tree[i][key] !== undefined ? tree[i][key] : '-'));
                 tr.appendChild(td)
             });
             tbdy.appendChild(tr);
-        });
+        }
         table.appendChild(tbdy);
 
         const thead = document.createElement('thead');
@@ -168,7 +181,8 @@
     data.reverse();
     let tree = list_to_tree(data);
     tree = tree.map(root => calc(root));
-    console.log(tree);
+    // console.log(tree);
+    tree.reverse();
     drowTable(tree);
 
 </script>
