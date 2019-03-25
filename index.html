@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Title</title>
     <style>
-        #input-data, #output-data {
+        #input-data, #output-data, #output-data table {
             table-layout: fixed;
             width: 100%;
             border-collapse: collapse;
@@ -28,6 +28,10 @@
 
         thead {
             border-bottom: 2px solid;
+        }
+
+        .hide {
+            display: none;
         }
 
     </style>
@@ -143,28 +147,52 @@
         return root;
     }
 
+    function getTable(root) {
+        const tr_list = [];
+        let tr, td, ch_table, ch_tbdy, childrens;
+        // console.log(root);
+        tr = document.createElement('tr');
+        if (root.children.length) {
+            tr.style.fontWeight = "600";
+            tr.style.cursor = "pointer";
+            tr.onclick = function () {
+                // console.dir(this.nextSibling);
+                this.nextSibling.classList.toggle("hide");
+            }
+        }
+        keys.forEach((key) => {
+            const td = document.createElement('td');
+            td.appendChild(document.createTextNode(root[key] !== undefined ? root[key] : '-'));
+            tr.appendChild(td);
+        });
+        tr_list.push(tr);
+        if (root.children.length > 0) {
+            ch_table = document.createElement('table');
+            ch_tbdy = document.createElement('tbody');
+            root.children.forEach(node => {
+                childrens = getTable(node);
+                childrens.forEach(child => {
+                    ch_tbdy.appendChild(child);
+                });
+            });
+            ch_table.appendChild(ch_tbdy);
+
+            tr = document.createElement('tr');
+            td = document.createElement('td');
+            td.colSpan = keys.length;
+            td.appendChild(ch_table);
+            tr.appendChild(td);
+            tr.classList.add("hide");
+            tr.style.backgroundColor = "rgba(0, 0, 0, 0.03)";
+            tr_list.push(tr);
+        }
+        return tr_list;
+    }
+
     function drowTable(tree) {
         const table = document.getElementById('output-data');
+        table.innerHTML = '';
         const tbdy = document.createElement('tbody');
-        for (let i = 0; i < tree.length; i++) {
-            tree[i].children.forEach(child => {
-                tree.splice(i + 1, 0, child);
-            });
-            const tr = document.createElement('tr');
-
-            if (tree[i].children.length) {
-                tr.style.fontWeight = "600";
-                tr.style.cursor = "pointer";
-            }
-
-            keys.forEach((key) => {
-                const td = document.createElement('td');
-                td.appendChild(document.createTextNode(tree[i][key] !== undefined ? tree[i][key] : '-'));
-                tr.appendChild(td)
-            });
-            tbdy.appendChild(tr);
-        }
-        table.appendChild(tbdy);
 
         const thead = document.createElement('thead');
         const tr = document.createElement('tr');
@@ -175,14 +203,41 @@
         });
         thead.appendChild(tr);
         table.appendChild(thead);
+
+        tree.forEach(root => {
+            const childrens = getTable(root);
+            childrens.forEach(child => {
+                tbdy.appendChild(child);
+            });
+        });
+
+        table.appendChild(tbdy);
+    }
+
+    function sort(tree, key, reverse) {
+        tree.forEach(node => {
+            if (node.children.length > 0) {
+                sort(node.children, key, reverse);
+            }
+        });
+
+        tree.sort(key === 'ID' ? compare : (a, b) => {
+            const r = !reverse ? 1 : -1;
+            if (a[key] < b[key])
+                return -1 * r;
+            if (a[key] > b[key])
+                return r;
+            return 0;
+        });
     }
 
     data.sort(compare);
     data.reverse();
     let tree = list_to_tree(data);
     tree = tree.map(root => calc(root));
-    // console.log(tree);
-    tree.reverse();
+
+    sort(tree, 'NAME', true);
+    // tree.reverse();
     drowTable(tree);
 
 </script>
