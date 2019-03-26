@@ -50,8 +50,42 @@
     </table>
 </div>
 <script>
+    function renderInput(data) {
+        const keys = [];
+        data.forEach((row) => {
+            const rowKeys = Object.keys(row);
+            rowKeys.forEach((key) => {
+                if (!keys.includes(key)) {
+                    keys.push(key);
+                }
+            });
+        });
+        const inpTable = document.getElementById('input-data');
+        const tbdy = document.createElement('tbody');
+        data.forEach((row) => {
+            const tr = document.createElement('tr');
+            keys.forEach((key) => {
+                const td = document.createElement('td');
+                td.appendChild(document.createTextNode(row[key] !== undefined ? row[key] : '-'));
+                tr.appendChild(td)
+            });
+            tbdy.appendChild(tr);
+        });
+        const thead = document.createElement('thead');
+
+        const tr = document.createElement('tr');
+        keys.forEach((key) => {
+            const td = document.createElement('td');
+            td.appendChild(document.createTextNode(key));
+            tr.appendChild(td)
+        });
+        thead.appendChild(tr);
+        inpTable.appendChild(tbdy);
+        inpTable.appendChild(thead);
+    }
+
     const data = [
-        {'ID': '1', 'NAME': '1', 'PROP1': 'A', 'PROP2': 'B'},
+        {'ID': '1', 'PROP1': 'A', 'NAME': '1', 'PROP2': 'B'},
         {'ID': '1.1', 'NAME': '2', 'PROP1': 'A', 'PROP2': 'B'},
         {'ID': '1.1.1', 'NAME': '3', 'PROP1': 'C', 'PROP2': 'D', 'FROM': 20150501, 'TO': 20150602},
         {'ID': '1.1.2', 'NAME': '4', 'PROP1': 'A', 'PROP2': 'D', 'FROM': 20150515, 'TO': 20150615},
@@ -68,177 +102,196 @@
         {'ID': '2.1.1', 'NAME': '15', 'PROP3': 'C', 'PROP4': 'D', 'FROM': 20150501, 'TO': 20150602},
         {'ID': '2.1.2', 'NAME': '16', 'PROP5': 'A', 'FROM': 20150515, 'TO': 20150615}
     ];
-    const keys = ['ID', 'NAME'];
+    renderInput(data);
 
-    data.forEach((row) => {
-        const rowKeys = Object.keys(row);
-        rowKeys.forEach((key) => {
-            if (!keys.includes(key)) {
-                keys.push(key);
+    function Tree(data) {
+        this.data = data;
+        this.tree = [];
+        this.sortKey = 'ID';
+        this._sortReverse = false;
+
+        Object.defineProperties(this, {
+            sortReverse: {
+                get: () => {
+                    return this._sortReverse;
+                },
+                set: function (sortReverse) {
+                    this._sortReverse = sortReverse;
+                    this.renderTable();
+                }
             }
         });
-    });
-    const inpTable = document.getElementById('input-data');
-    const tbdy = document.createElement('tbody');
-    data.forEach((row) => {
-        const tr = document.createElement('tr');
-        keys.forEach((key) => {
-            const td = document.createElement('td');
-            td.appendChild(document.createTextNode(row[key] !== undefined ? row[key] : '-'));
-            tr.appendChild(td)
-        });
-        tbdy.appendChild(tr);
-    });
-    const thead = document.createElement('thead');
 
-    const tr = document.createElement('tr');
-    keys.forEach((key) => {
-        const td = document.createElement('td');
-        td.appendChild(document.createTextNode(key));
-        tr.appendChild(td)
-    });
-    thead.appendChild(tr);
-    inpTable.appendChild(tbdy);
-    inpTable.appendChild(thead);
-
-    function compare(a, b) {
-        const id_array_a = a['ID'].split('.');
-        const id_array_b = b['ID'].split('.');
-        const max_length = Math.max(id_array_a.length, id_array_b.length);
-        for (let i = 0; i < max_length; i++) {
-            if (parseInt(id_array_a[i] || 0) > parseInt(id_array_b[i] || 0)) {
-                return 1;
+        function compareById(a, b, reverse) {
+            const r = !reverse ? 1 : -1;
+            const id_array_a = a['ID'].split('.');
+            const id_array_b = b['ID'].split('.');
+            const max_length = Math.max(id_array_a.length, id_array_b.length);
+            for (let i = 0; i < max_length; i++) {
+                if (parseInt(id_array_a[i] || 0) > parseInt(id_array_b[i] || 0)) {
+                    return r;
+                }
+                else if (parseInt(id_array_a[i] || 0) < parseInt(id_array_b[i] || 0)) {
+                    return -1 * r;
+                }
             }
-            else if (parseInt(id_array_a[i] || 0) < parseInt(id_array_b[i] || 0)) {
-                return -1;
-            }
+            return 0;
         }
-        return 0;
-    }
 
-    function list_to_tree(list) {
-        const map = {};
-        const roots = [];
-        for (let i = 0; i < list.length; i++) {
-            map[list[i]['ID']] = i;
-            list[i].children = [];
-        }
-        for (let i = 0; i < list.length; i++) {
-            const node = list[i];
-            const parentId = node['ID'].split('.').slice(0, -1).join('.');
-            if (parentId.length) {
-                list[map[parentId]].children.push(node);
-            } else {
-                roots.push(node);
+        function listToTree(list) {
+            const map = {};
+            const roots = [];
+            for (let i = 0; i < list.length; i++) {
+                map[list[i]['ID']] = i;
+                list[i].children = [];
             }
-        }
-        return roots;
-    }
-
-    function calc(root) {
-        let FROM = Infinity, TO = 0;
-        for (let i = 0; i < root.children.length; i++) {
-            root.children[i] = calc(root.children[i]);
-            FROM = root.children[i]['FROM'] < FROM ? root.children[i]['FROM'] : FROM;
-            TO = root.children[i]['TO'] > TO ? root.children[i]['TO'] : TO;
-        }
-        root['FROM'] = root['FROM'] !== undefined ? root['FROM'] : FROM;
-        root['TO'] = root['TO'] !== undefined ? root['TO'] : TO;
-        return root;
-    }
-
-    function getTable(root) {
-        const tr_list = [];
-        let tr, td, ch_table, ch_tbdy, childrens;
-        // console.log(root);
-        tr = document.createElement('tr');
-        if (root.children.length) {
-            tr.style.fontWeight = "600";
-            tr.style.cursor = "pointer";
-            tr.onclick = function () {
-                // console.dir(this.nextSibling);
-                this.nextSibling.classList.toggle("hide");
+            for (let i = 0; i < list.length; i++) {
+                const node = list[i];
+                const parentId = node['ID'].split('.').slice(0, -1).join('.');
+                if (parentId.length) {
+                    list[map[parentId]].children.push(node);
+                } else {
+                    roots.push(node);
+                }
             }
+            return roots;
         }
-        keys.forEach((key) => {
-            const td = document.createElement('td');
-            td.appendChild(document.createTextNode(root[key] !== undefined ? root[key] : '-'));
-            tr.appendChild(td);
-        });
-        tr_list.push(tr);
-        if (root.children.length > 0) {
-            ch_table = document.createElement('table');
-            ch_tbdy = document.createElement('tbody');
-            root.children.forEach(node => {
-                childrens = getTable(node);
+
+        function calcFromAndTo(root) {
+            let FROM = Infinity, TO = 0;
+            for (let i = 0; i < root.children.length; i++) {
+                root.children[i] = calcFromAndTo(root.children[i]);
+                FROM = root.children[i]['FROM'] < FROM ? root.children[i]['FROM'] : FROM;
+                TO = root.children[i]['TO'] > TO ? root.children[i]['TO'] : TO;
+            }
+            root['FROM'] = root['FROM'] !== undefined ? root['FROM'] : FROM;
+            root['TO'] = root['TO'] !== undefined ? root['TO'] : TO;
+            return root;
+        }
+
+        function sortTree(tree, key, reverse) {
+            tree.forEach(node => {
+                if (node.children.length > 0) {
+                    node.children = sortTree(node.children, key, reverse);
+                }
+            });
+
+            const r = !reverse ? 1 : -1;
+            tree.sort(
+                key === 'ID' ?
+                    (a, b) => {
+                        return compareById(a, b, reverse);
+                    } :
+                    (a, b) => {
+                        if (a[key] < b[key])
+                            return -1 * r;
+                        if (a[key] > b[key])
+                            return r;
+                        return 0;
+                    });
+            return tree;
+        }
+
+        function getTable(root, keys) {
+            const tr_list = [];
+            let tr, td, ch_table, ch_tbdy, childrens;
+            // console.log(root);
+            tr = document.createElement('tr');
+            if (root.children.length) {
+                tr.style.fontWeight = "600";
+                tr.style.cursor = "pointer";
+                tr.onclick = function () {
+                    this.nextSibling.classList.toggle("hide");
+                }
+            }
+            keys.forEach((key) => {
+                const td = document.createElement('td');
+                td.appendChild(document.createTextNode(root[key] !== undefined ? root[key] : '-'));
+                tr.appendChild(td);
+            });
+            tr_list.push(tr);
+            if (root.children.length > 0) {
+                ch_table = document.createElement('table');
+                ch_tbdy = document.createElement('tbody');
+                root.children.forEach(node => {
+                    childrens = getTable(node, keys);
+                    childrens.forEach(child => {
+                        ch_tbdy.appendChild(child);
+                    });
+                });
+                ch_table.appendChild(ch_tbdy);
+
+                tr = document.createElement('tr');
+                td = document.createElement('td');
+                td.colSpan = keys.length;
+                td.appendChild(ch_table);
+                tr.appendChild(td);
+                tr.classList.add("hide");
+                tr.style.backgroundColor = "rgba(0, 0, 0, 0.03)";
+                tr_list.push(tr);
+            }
+            return tr_list;
+        }
+
+        this.drowTable = () => {
+            this.tableHtml.innerHTML = '';
+            const tbdy = document.createElement('tbody');
+            const thead = document.createElement('thead');
+            const tr = document.createElement('tr');
+            this.keys.forEach((key) => {
+                const td = document.createElement('td');
+                const sufx = this.sortKey !== key ? '' : this.sortReverse ? ' \\/' : ' /\\';
+                td.appendChild(document.createTextNode(key + sufx));
+                td.style.fontWeight = "600";
+                td.style.cursor = "pointer";
+                td.onclick = () => {
+                    if (this.sortKey === key) {
+                        this.sortReverse = !this.sortReverse;
+                    } else {
+                        this.sortKey = key;
+                        this.sortReverse = false;
+                    }
+                };
+                tr.appendChild(td)
+            });
+            thead.appendChild(tr);
+
+            this.tableHtml.appendChild(thead);
+            this.tree.forEach(root => {
+                const childrens = getTable(root, this.keys);
                 childrens.forEach(child => {
-                    ch_tbdy.appendChild(child);
+                    tbdy.appendChild(child);
                 });
             });
-            ch_table.appendChild(ch_tbdy);
 
-            tr = document.createElement('tr');
-            td = document.createElement('td');
-            td.colSpan = keys.length;
-            td.appendChild(ch_table);
-            tr.appendChild(td);
-            tr.classList.add("hide");
-            tr.style.backgroundColor = "rgba(0, 0, 0, 0.03)";
-            tr_list.push(tr);
-        }
-        return tr_list;
-    }
+            this.tableHtml.appendChild(tbdy);
+        };
 
-    function drowTable(tree) {
-        const table = document.getElementById('output-data');
-        table.innerHTML = '';
-        const tbdy = document.createElement('tbody');
+        this.renderTable = () => {
+            this.tree = sortTree(this.tree, this.sortKey || 'ID', this.sortReverse !== undefined ? this.sortReverse : true);
+            this.drowTable();
+        };
 
-        const thead = document.createElement('thead');
-        const tr = document.createElement('tr');
-        keys.forEach((key) => {
-            const td = document.createElement('td');
-            td.appendChild(document.createTextNode(key));
-            tr.appendChild(td)
-        });
-        thead.appendChild(tr);
-        table.appendChild(thead);
-
-        tree.forEach(root => {
-            const childrens = getTable(root);
-            childrens.forEach(child => {
-                tbdy.appendChild(child);
+        this.keys = ['ID', 'NAME'];
+        this.data.forEach((row) => {
+            const rowKeys = Object.keys(row);
+            rowKeys.forEach((key) => {
+                if (!this.keys.includes(key)) {
+                    this.keys.push(key);
+                }
             });
         });
 
-        table.appendChild(tbdy);
+        this.tableHtml = document.getElementById('output-data');
+
+        this.data.sort(compareById);
+        this.data.reverse();
+        this.tree = listToTree(data);
+        this.tree.map(root => calcFromAndTo(root));
+        this.renderTable();
     }
 
-    function sort(tree, key, reverse) {
-        tree.forEach(node => {
-            if (node.children.length > 0) {
-                sort(node.children, key, reverse);
-            }
-        });
-
-        tree.sort(key === 'ID' ? compare : (a, b) => {
-            const r = !reverse ? 1 : -1;
-            if (a[key] < b[key])
-                return -1 * r;
-            if (a[key] > b[key])
-                return r;
-            return 0;
-        });
-    }
-
-    data.sort(compare);
-    data.reverse();
-    let tree = list_to_tree(data);
-    tree = tree.map(root => calc(root));
-
-    sort(tree, 'NAME', true);
-    // tree.reverse();
-    drowTable(tree);
+    new Tree(data);
 
 </script>
 </body>
