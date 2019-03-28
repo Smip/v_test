@@ -34,11 +34,23 @@
             display: none;
         }
 
+        .clickable {
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .child {
+            background-color: rgba(0, 0, 0, 0.03);
+        }
+
     </style>
 </head>
 <body>
 <div style="width: 50%;float: left;">
     <h2>Output data</h2>
+    <label for="search">Global search:</label>
+    <input type="text" id="search">
+    <hr>
     <table id="output-data">
 
     </table>
@@ -144,6 +156,8 @@
             for (let i = 0; i < list.length; i++) {
                 map[list[i]['ID']] = i;
                 list[i].children = [];
+                list[i]._childIsOpen = false;
+                list[i]._show = true;
             }
             for (let i = 0; i < list.length; i++) {
                 const node = list[i];
@@ -171,17 +185,19 @@
 
         function sortTree(tree, key, reverse) {
             tree.forEach(node => {
-                if (node.children.length > 0) {
+                if (node.children.length) {
                     node.children = sortTree(node.children, key, reverse);
                 }
             });
 
             const r = !reverse ? 1 : -1;
             tree.sort(
-                key === 'ID' ?
+                key === 'ID'
+                    ?
                     (a, b) => {
                         return compareById(a, b, reverse);
-                    } :
+                    }
+                    :
                     (a, b) => {
                         if (a[key] < b[key])
                             return -1 * r;
@@ -192,25 +208,45 @@
             return tree;
         }
 
+
         function getTable(root, keys) {
             const tr_list = [];
             let tr, td, ch_table, ch_tbdy, childrens;
-            // console.log(root);
             tr = document.createElement('tr');
-            if (root.children.length) {
-                tr.style.fontWeight = "600";
-                tr.style.cursor = "pointer";
-                tr.onclick = function () {
-                    this.nextSibling.classList.toggle("hide");
-                }
+            root._htmlNode = tr;
+            if (!root._show) {
+                tr.classList.add('hide');
             }
+
+            //add first column with [+] or [-]
+            td = document.createElement('td');
+            if (root.children.length) {
+                tr.classList.add('clickable');
+                tr.onclick = function () {
+                    root._childIsOpen = !root._childIsOpen;
+                    this.nextSibling.classList.toggle("hide");
+                    this.firstChild.innerHTML = root._childIsOpen ? '[-]' : '[+]';
+                };
+                td.appendChild(document.createTextNode(root._childIsOpen ? '[-]' : '[+]'));
+                tr.appendChild(td);
+            } else {
+                tr.appendChild(td);
+            }
+            // end adding first column with [+] or [-]
+
             keys.forEach((key) => {
-                const td = document.createElement('td');
-                td.appendChild(document.createTextNode(root[key] !== undefined ? root[key] : '-'));
+                td = document.createElement('td');
+                if (root[key] === undefined) {
+                    td.appendChild(document.createTextNode('-'));
+                } else if (root[key] instanceof Date) {
+                    td.appendChild(document.createTextNode(root[key].toISOString().slice(0, 10)));
+                } else {
+                    td.appendChild(document.createTextNode(root[key]));
+                }
                 tr.appendChild(td);
             });
             tr_list.push(tr);
-            if (root.children.length > 0) {
+            if (root.children.length) {
                 ch_table = document.createElement('table');
                 ch_tbdy = document.createElement('tbody');
                 root.children.forEach(node => {
@@ -223,27 +259,32 @@
 
                 tr = document.createElement('tr');
                 td = document.createElement('td');
-                td.colSpan = keys.length;
+                td.colSpan = keys.length + 1;
                 td.appendChild(ch_table);
                 tr.appendChild(td);
-                tr.classList.add("hide");
-                tr.style.backgroundColor = "rgba(0, 0, 0, 0.03)";
+                if (!root._childIsOpen) {
+                    tr.classList.add("hide");
+                }
+                tr.classList.add('child');
                 tr_list.push(tr);
             }
             return tr_list;
         }
 
-        this.drowTable = () => {
+        this.drowTable = (tree) => {
             this.tableHtml.innerHTML = '';
+            let td, tr;
             const tbdy = document.createElement('tbody');
             const thead = document.createElement('thead');
-            const tr = document.createElement('tr');
+
+            // add table header
+            tr = document.createElement('tr');
+            tr.appendChild(document.createElement('td'));
             this.keys.forEach((key) => {
-                const td = document.createElement('td');
+                td = document.createElement('td');
                 const sufx = this.sortKey !== key ? '' : this.sortReverse ? ' \\/' : ' /\\';
                 td.appendChild(document.createTextNode(key + sufx));
-                td.style.fontWeight = "600";
-                td.style.cursor = "pointer";
+                td.classList.add('clickable');
                 td.onclick = () => {
                     if (this.sortKey === key) {
                         this.sortReverse = !this.sortReverse;
@@ -255,9 +296,10 @@
                 tr.appendChild(td)
             });
             thead.appendChild(tr);
+            // end adding table header
 
             this.tableHtml.appendChild(thead);
-            this.tree.forEach(root => {
+            tree.forEach(root => {
                 const childrens = getTable(root, this.keys);
                 childrens.forEach(child => {
                     tbdy.appendChild(child);
@@ -267,9 +309,62 @@
             this.tableHtml.appendChild(tbdy);
         };
 
+        function filterTree(root, search, keys) {
+            let nodeHas = false;
+            root.map(node => {
+                nodeHas = false;
+                if (node.children.length) {
+                    nodeHas = filterTree(node.children, search, keys);
+                }
+                if (!nodeHas && search) {
+                    nodeHas = keys.some((key) => {
+                        if (node[key] instanceof Date) {
+                            return node[key].toISOString().slice(0, 10).includes(search.toLowerCase());
+                        } else if (node[key] !== undefined) {
+                            return node[key].toString().toLowerCase().includes(search.toLowerCase());
+                        }
+                    });
+                }
+                if (nodeHas || !search) {
+                    node._show = true;
+                    node._htmlNode.classList.remove("hide");
+                } else {
+                    node._show = false;
+                    node._htmlNode.classList.add("hide");
+                }
+            });
+            return nodeHas;
+        }
+
+        this.filter = search => {
+            filterTree(this.tree, search, this.keys);
+        };
+
+        function strToDate(inpStr) {
+            const parts = {
+                0: inpStr.substring(0, 4),
+                1: inpStr.substring(4, 6),
+                2: inpStr.substring(6, 8)
+            };
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+        }
+
+        this.normalizeFields = () => {
+            this.data.forEach((row) => {
+                if (row['FROM'] !== undefined) {
+                    row['FROM'] = strToDate(row['FROM'].toString());
+                }
+                if (row['TO'] !== undefined) {
+                    row['TO'] = strToDate(row['TO'].toString());
+                }
+            });
+
+        };
+
+
         this.renderTable = () => {
-            this.tree = sortTree(this.tree, this.sortKey || 'ID', this.sortReverse !== undefined ? this.sortReverse : true);
-            this.drowTable();
+            sortTree(this.tree, this.sortKey || 'ID', this.sortReverse !== undefined ? this.sortReverse : true);
+            this.drowTable(this.tree);
         };
 
         this.keys = ['ID', 'NAME'];
@@ -283,6 +378,7 @@
         });
 
         this.tableHtml = document.getElementById('output-data');
+        this.normalizeFields();
 
         this.data.sort(compareById);
         this.data.reverse();
@@ -291,7 +387,11 @@
         this.renderTable();
     }
 
-    new Tree(data);
+    const tree = new Tree(data);
+    document.getElementById('search').addEventListener('input', function () {
+        console.log(this.value);
+        tree.filter(this.value);
+    });
 
 </script>
 </body>
