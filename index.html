@@ -310,14 +310,15 @@
         };
 
         function filterTree(root, search, keys) {
-            let nodeHas = false;
+            let showNode = false;
+            let showElement = false;
             root.map(node => {
-                nodeHas = false;
+                showElement = false;
                 if (node.children.length) {
-                    nodeHas = filterTree(node.children, search, keys);
+                    showElement = filterTree(node.children, search, keys);
                 }
-                if (!nodeHas && search) {
-                    nodeHas = keys.some((key) => {
+                if (!showElement && search) {
+                    showElement = keys.some((key) => {
                         if (node[key] instanceof Date) {
                             return node[key].toISOString().slice(0, 10).includes(search.toLowerCase());
                         } else if (node[key] !== undefined) {
@@ -325,7 +326,8 @@
                         }
                     });
                 }
-                if (nodeHas || !search) {
+                if (showElement || !search) {
+                    showNode = true;
                     node._show = true;
                     node._htmlNode.classList.remove("hide");
                 } else {
@@ -333,7 +335,7 @@
                     node._htmlNode.classList.add("hide");
                 }
             });
-            return nodeHas;
+            return showNode;
         }
 
         this.filter = search => {
