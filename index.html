@@ -26,6 +26,24 @@
             background-color: #eeeeee;
         }
 
+        #paginator {
+            margin: 5px;
+            text-align: center;
+        }
+
+        #paginator button {
+            margin: 3px;
+
+        }
+
+        #paginator button:enabled {
+            cursor: pointer;
+        }
+
+        #paginator button.active {
+            border: 2px solid red;
+        }
+
         thead {
             border-bottom: 2px solid;
         }
@@ -48,12 +66,25 @@
 <body>
 <div style="width: 50%;float: left;">
     <h2>Output data</h2>
+
     <label for="search">Global search:</label>
     <input type="text" id="search">
+
+    <label for="items-per-page">Items per page:</label>
+    <select id="items-per-page">
+        <option value="2">2</option>
+        <option value="4">4</option>
+        <option value="6">6</option>
+    </select>
+
+
     <hr>
     <table id="output-data">
 
     </table>
+    <div id="paginator">
+
+    </div>
 </div>
 <div style="width: 50%;float: left;">
     <h2>Input data</h2>
@@ -111,8 +142,25 @@
         {'ID': '2.3.1', 'NAME': '12', 'PROP1': 'C', 'PROP2': 'D', 'FROM': 20150501, 'TO': 20150602},
         {'ID': '2.1.3', 'NAME': '13', 'PROP1': 'B', 'PROP2': 'C', 'FROM': 20150601, 'TO': 20150615},
         {'ID': '2.2', 'NAME': '14', 'PROP1': 'A', 'PROP2': 'B', 'FROM': 20150501, 'TO': 20150615},
-        {'ID': '2.1.1', 'NAME': '15', 'PROP3': 'C', 'PROP4': 'D', 'FROM': 20150501, 'TO': 20150602},
-        {'ID': '2.1.2', 'NAME': '16', 'PROP5': 'A', 'FROM': 20150515, 'TO': 20150615}
+        {'ID': '2.1.1', 'NAME': '15', 'PROP3': 'R', 'PROP4': 'D', 'FROM': 20150501, 'TO': 20150602},
+        {'ID': '2.1.2', 'NAME': '16', 'PROP5': 'A', 'FROM': 20150515, 'TO': 20150615},
+        {'ID': '3', 'NAME': '17', 'PROP1': 'A', 'PROP2': 'B', 'FROM': 20150515, 'TO': 20150615},
+        {'ID': '4', 'NAME': '17', 'PROP1': 'H', 'PROP2': 'B'},
+        {'ID': '4.1', 'NAME': '2', 'PROP1': 'R', 'PROP2': 'B'},
+        {'ID': '4.1.1', 'NAME': '44', 'PROP1': 'C', 'PROP2': 'D', 'FROM': 20150501, 'TO': 20150602},
+        {'ID': '4.1.2', 'NAME': '33', 'PROP1': 'A', 'PROP2': 'D', 'FROM': 20150515, 'TO': 20150615},
+        {'ID': '4.1.3', 'NAME': '234', 'PROP1': 'B', 'PROP2': 'C', 'FROM': 20150601, 'TO': 20150615},
+        {'ID': '5', 'NAME': '17', 'PROP1': 'A', 'PROP2': 'F', 'FROM': 20150515, 'TO': 20150615},
+        {'ID': '6', 'NAME': '17', 'PROP1': 'A', 'PROP2': 'B'},
+        {'ID': '6.1', 'NAME': '14', 'PROP1': 'A', 'PROP2': 'B', 'FROM': 20150501, 'TO': 20150615},
+        {'ID': '7', 'NAME': '17', 'PROP1': 'A', 'PROP2': 'B',},
+        {'ID': '7.1', 'NAME': '14', 'PROP1': 'A', 'PROP2': 'B', 'FROM': 20150501, 'TO': 20150615},
+        {'ID': '8', 'NAME': '17', 'PROP1': 'A', 'PROP2': 'B', 'FROM': 20150515, 'TO': 20150615},
+        {'ID': '9', 'NAME': '17', 'PROP1': 'R', 'PROP2': 'F'},
+        {'ID': '9.1', 'NAME': '14', 'PROP3': 'A', 'PROP4': 'B', 'FROM': 20150501, 'TO': 20150615},
+        {'ID': '10', 'NAME': '17', 'PROP1': 'A', 'PROP2': 'B', 'FROM': 20150515, 'TO': 20150615},
+        {'ID': '11', 'NAME': '17', 'PROP3': 'A', 'PROP4': 'F', 'FROM': 20150515, 'TO': 20150615},
+        {'ID': '12', 'NAME': '17', 'PROP1': 'J', 'PROP2': 'B', 'FROM': 20150515, 'TO': 20150615},
     ];
     renderInput(data);
 
@@ -120,7 +168,10 @@
         this.data = data;
         this.tree = [];
         this.sortKey = 'ID';
+
         this._sortReverse = false;
+        this._items_per_page = 2;
+        this._current_page = 1;
 
         Object.defineProperties(this, {
             sortReverse: {
@@ -130,6 +181,33 @@
                 set: function (sortReverse) {
                     this._sortReverse = sortReverse;
                     this.renderTable();
+                }
+            },
+            length: {
+                get: () => {
+                    return this.tree.filter((root) => root._show).length;
+                }
+            },
+            items_per_page: {
+                get: () => {
+                    return this._items_per_page;
+                },
+                set: function (newValue) {
+                    this._items_per_page = newValue;
+                    if (this.current_page > Math.ceil(this.length / this.items_per_page)) {
+                        this.current_page = Math.ceil(this.length / this.items_per_page) || 1;
+                    } else {
+                        this.drowTable();
+                    }
+                }
+            },
+            current_page: {
+                get: () => {
+                    return this._current_page;
+                },
+                set: function (newValue) {
+                    this._current_page = newValue;
+                    this.drowTable();
                 }
             }
         });
@@ -208,6 +286,72 @@
             return tree;
         }
 
+        function pagination(c, m) {
+            const current = c,
+                last = m,
+                delta = 2,
+                left = current - delta,
+                right = current + delta + 1,
+                range = [],
+                rangeWithDots = [];
+            let l;
+
+            for (let i = 1; i <= last; i++) {
+                if (i === 1 || i === last || i >= left && i < right) {
+                    range.push(i);
+                }
+            }
+
+            for (let i of range) {
+                if (l) {
+                    if (i - l === 2) {
+                        rangeWithDots.push(l + 1);
+                    } else if (i - l !== 1) {
+                        rangeWithDots.push('...');
+                    }
+                }
+                rangeWithDots.push(i);
+                l = i;
+            }
+
+            return rangeWithDots;
+        }
+
+        function filterTree(root, search, keys) {
+            let showNode = false;
+            let showElement = false;
+            root.map(node => {
+                showElement = false;
+                if (node.children.length) {
+                    showElement = filterTree(node.children, search, keys);
+                }
+                if (!showElement && search) {
+                    showElement = keys.some((key) => {
+                        if (node[key] instanceof Date) {
+                            return node[key].toISOString().slice(0, 10).includes(search.toLowerCase());
+                        } else if (node[key] !== undefined) {
+                            return node[key].toString().toLowerCase().includes(search.toLowerCase());
+                        }
+                    });
+                }
+                if (showElement || !search) {
+                    showNode = true;
+                    node._show = true;
+                } else {
+                    node._show = false;
+                }
+            });
+            return showNode;
+        }
+
+        function strToDate(inpStr) {
+            const parts = {
+                0: inpStr.substring(0, 4),
+                1: inpStr.substring(4, 6),
+                2: inpStr.substring(6, 8)
+            };
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+        }
 
         function getTable(root, keys) {
             const tr_list = [];
@@ -271,7 +415,7 @@
             return tr_list;
         }
 
-        this.drowTable = (tree) => {
+        this.drowTable = () => {
             this.tableHtml.innerHTML = '';
             let td, tr;
             const tbdy = document.createElement('tbody');
@@ -296,60 +440,61 @@
                 tr.appendChild(td)
             });
             thead.appendChild(tr);
+            this.tableHtml.appendChild(thead);
             // end adding table header
 
-            this.tableHtml.appendChild(thead);
-            tree.forEach(root => {
-                const childrens = getTable(root, this.keys);
-                childrens.forEach(child => {
-                    tbdy.appendChild(child);
-                });
+            // add table body
+            let j = 0;
+            for (
+                let i = (this.current_page - 1) * this.items_per_page;
+                j < this.items_per_page && i < this.tree.length;
+                i++
+            ) {
+                if (this.tree[i]._show) {
+                    const childrens = getTable(this.tree[i], this.keys);
+                    childrens.forEach(child => {
+                        tbdy.appendChild(child);
+                    });
+                    j++;
+                }
+            }
+            this.tableHtml.appendChild(tbdy);
+            // end adding table body
+
+            // add paginator
+            this.paginatorBlock.innerHTML = '';
+            const pages = pagination(this.current_page, Math.ceil(this.length / this.items_per_page));
+            pages.forEach((page) => {
+                const el = document.createElement('button');
+                el.type = "button";
+                el.innerText = page;
+                if (page === this.current_page) {
+                    el.disabled = true;
+                    el.classList.add("active");
+                }
+                if (Number.isInteger(page)) {
+                    el.onclick = () => {
+                        this.current_page = page;
+                    }
+                } else {
+                    el.disabled = true;
+                }
+
+                this.paginatorBlock.appendChild(el);
             });
 
-            this.tableHtml.appendChild(tbdy);
         };
 
-        function filterTree(root, search, keys) {
-            let showNode = false;
-            let showElement = false;
-            root.map(node => {
-                showElement = false;
-                if (node.children.length) {
-                    showElement = filterTree(node.children, search, keys);
-                }
-                if (!showElement && search) {
-                    showElement = keys.some((key) => {
-                        if (node[key] instanceof Date) {
-                            return node[key].toISOString().slice(0, 10).includes(search.toLowerCase());
-                        } else if (node[key] !== undefined) {
-                            return node[key].toString().toLowerCase().includes(search.toLowerCase());
-                        }
-                    });
-                }
-                if (showElement || !search) {
-                    showNode = true;
-                    node._show = true;
-                    node._htmlNode.classList.remove("hide");
-                } else {
-                    node._show = false;
-                    node._htmlNode.classList.add("hide");
-                }
-            });
-            return showNode;
-        }
+
 
         this.filter = search => {
             filterTree(this.tree, search, this.keys);
+            if (this.current_page > Math.ceil(this.length / this.items_per_page)) {
+                this.current_page = Math.ceil(this.length / this.items_per_page) || 1;
+            } else {
+                this.drowTable();
+            }
         };
-
-        function strToDate(inpStr) {
-            const parts = {
-                0: inpStr.substring(0, 4),
-                1: inpStr.substring(4, 6),
-                2: inpStr.substring(6, 8)
-            };
-            return new Date(parts[0], parts[1] - 1, parts[2]);
-        }
 
         this.normalizeFields = () => {
             this.data.forEach((row) => {
@@ -366,7 +511,7 @@
 
         this.renderTable = () => {
             sortTree(this.tree, this.sortKey || 'ID', this.sortReverse !== undefined ? this.sortReverse : true);
-            this.drowTable(this.tree);
+            this.drowTable();
         };
 
         this.keys = ['ID', 'NAME'];
@@ -380,6 +525,7 @@
         });
 
         this.tableHtml = document.getElementById('output-data');
+        this.paginatorBlock = document.getElementById('paginator');
         this.normalizeFields();
 
         this.data.sort(compareById);
@@ -390,9 +536,12 @@
     }
 
     const tree = new Tree(data);
+    console.log(tree);
     document.getElementById('search').addEventListener('input', function () {
-        console.log(this.value);
         tree.filter(this.value);
+    });
+    document.getElementById('items-per-page').addEventListener('input', function () {
+        tree.items_per_page = this.value;
     });
 
 </script>
